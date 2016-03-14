@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import MobileCoreServices
 
 public class SRWebClient : NSObject
 {
