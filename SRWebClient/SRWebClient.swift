@@ -112,7 +112,7 @@ public class SRWebClient : NSObject
                 dataList.append("\(key)=\(value)")
             }
         }
-        return "&".join(dataList).stringByAddingPercentEscapesUsingEncoding(NSUTF8StringEncoding)
+        return dataList.joinWithSeparator("&").stringByAddingPercentEscapesUsingEncoding(NSUTF8StringEncoding)
     }
     
     /**
@@ -138,17 +138,19 @@ public class SRWebClient : NSObject
     }
     
     /**
-    *  Function to upload image & data using POST request
+    *  Function to upload rawData using POST request
     *
-    *  @param image:NSData       image data of type NSData
-    *  @param fieldName:String   field name for uploading image
-    *  @param data:RequestData?  optional value of type Dictionary<String,AnyObject>
+    *  @param rawData:NSData        data of type NSData
+    *  @param fileExtension:String  file extension name for uploading data
+    *  @param fieldName:String      field name for uploading data
+    *  @param data:RequestData?     optional value of type Dictionary<String,AnyObject>
     *
     *  @return self instance to support function chaining
     */
-    public func data(image:NSData, fieldName:String, data:RequestData?) -> SRWebClient {
-        if(image.length > 0 && self.urlRequest!.HTTPMethod == "POST") {
+    public func data(rawData:NSData, fileExtension:String = "jpg", fieldName:String, data:RequestData?) -> SRWebClient {
+        if(rawData.length > 0 && self.urlRequest!.HTTPMethod == "POST") {
             
+            let contentType = mimeTypeFromFileExtension(fileExtension)
             let uniqueId = NSProcessInfo.processInfo().globallyUniqueString
             
             let postBody:NSMutableData = NSMutableData()
@@ -168,10 +170,10 @@ public class SRWebClient : NSObject
                 }
             }
             postData += "--\(boundary)\r\n"
-            postData += "Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(Int64(NSDate().timeIntervalSince1970*1000)).jpg\"\r\n"
-            postData += "Content-Type: image/jpeg\r\n\r\n"
+            postData += "Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(Int64(NSDate().timeIntervalSince1970*1000)).\(fileExtension)\"\r\n"
+            postData += "Content-Type: \(contentType!)\r\n\r\n"
             postBody.appendData(postData.dataUsingEncoding(NSUTF8StringEncoding)!)
-            postBody.appendData(image)
+            postBody.appendData(rawData)
             postData = String()
             postData += "\r\n"
             postData += "\r\n--\(boundary)--\r\n"
@@ -180,6 +182,18 @@ public class SRWebClient : NSObject
             self.urlRequest!.HTTPBody = NSData(data: postBody)
         }
         return self
+    }
+
+    private func mimeTypeFromFileExtension(fileExtension: String) -> String? {
+        guard let uti: CFString = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, fileExtension as NSString, nil)?.takeRetainedValue() else {
+            return nil
+        }
+		            
+        guard let mimeType: CFString = UTTypeCopyPreferredTagWithClass(uti, kUTTagClassMIMEType)?.takeRetainedValue() else {
+            return nil
+        }
+		            
+        return mimeType as String
     }
     
     /**
